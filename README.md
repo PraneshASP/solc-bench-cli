@@ -13,6 +13,7 @@ It builds and tests each project with each compiler. Then it shows the differenc
 | solx | 0.1.8 | [NomicFoundation/solx](https://github.com/NomicFoundation/solx) |
 | oksolc | 0.2.4 | [okcontract/oksolc](https://github.com/okcontract/oksolc) |
 | solc | the versions that the project uses | Foundry |
+| solc-latest | 0.8.38 for all files | Foundry |
 
 ## Requirements
 
@@ -48,7 +49,12 @@ The first run builds a Docker image. This takes approximately 15 minutes. Later 
 
 ## Results
 
-The tool compares each compiler with the solc setup of the project. It measures:
+The summary shows two comparisons for each project:
+
+1. **With the solc setup of the project.** This shows the change that you get if you replace your current compiler.
+2. **With solc-latest.** solc-latest compiles all files with solc 0.8.38 and the EVM version of the project, as the new compilers do. This comparison shows the effect of the compiler only. It removes the effect of a newer Solidity version or a newer EVM version.
+
+The tool measures:
 
 - Build time: the median of clean builds.
 - Contract size: the size of the deployed bytecode.

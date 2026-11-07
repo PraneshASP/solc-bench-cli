@@ -1,4 +1,9 @@
-export const CANDIDATES = ["solar", "slang", "solx", "oksolc"] as const;
+export const NEW_COMPILERS = ["solar", "slang", "solx", "oksolc"] as const;
+/** One recent solc for all files and the same EVM target as the new compilers. Separates compiler effects from version effects. */
+export const SOLC_LATEST = "solc-latest";
+export const SOLC_LATEST_VERSION = "0.8.38";
+/** Variants compared with the repo baseline. */
+export const CANDIDATES: readonly string[] = [...NEW_COMPILERS, SOLC_LATEST];
 export const SOLC_VARIANTS = ["solc-legacy", "solc-viair"] as const;
 export const ALL_VARIANTS: readonly string[] = [...CANDIDATES, ...SOLC_VARIANTS];
 

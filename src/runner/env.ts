@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type { RepoSpec } from "../spec.ts";
+import { SOLC_LATEST, SOLC_LATEST_VERSION } from "../types.ts";
 
 export const REPOS_DIR = "/repos";
 export const WORK_DIR = "/work";
@@ -41,6 +42,9 @@ export const VARIANTS: Record<string, Variant> = {
     flags: ["--use", "/usr/local/bin/oksolc"], env: { FOUNDRY_VIA_IR: "true", FOUNDRY_OPTIMIZER: "true" }, relaxPragmas: true,
     versionCmd: ["/usr/local/bin/oksolc", "version"],
   },
+  // One recent solc for every file, with the repo's own via_ir and optimizer settings.
+  [SOLC_LATEST]: { flags: ["--use", SOLC_LATEST_VERSION], env: {}, relaxPragmas: true },
   "solc-legacy": { flags: [], env: { FOUNDRY_VIA_IR: "false" }, relaxPragmas: false },
   "solc-viair": { flags: [], env: { FOUNDRY_VIA_IR: "true" }, relaxPragmas: false },
 };
+

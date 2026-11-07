@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import type { RepoSpec } from "../spec.ts";
+import { SOLC_LATEST_VERSION } from "../types.ts";
 import { Board, repoLabel, section } from "../ui.ts";
 import { SVM_DIR, repoDir } from "./env.ts";
 import { installSolc, resolveSolc } from "./forge.ts";
@@ -34,7 +35,8 @@ export function fetchRepos(specs: RepoSpec[]): number {
       board.update(id, "resolving solc versions");
       const versions = resolveSolc(dir);
       board.advance(id, `needs solc ${versions.join(", ") || "none"}`);
-      for (const v of versions) {
+      // The solc-latest variant compiles every repo with one fixed version.
+      for (const v of new Set([...versions, SOLC_LATEST_VERSION])) {
         if (existsSync(join(SVM_DIR, v, `solc-${v}`))) continue;
         board.update(id, `installing solc ${v}`);
         installSolc(v);

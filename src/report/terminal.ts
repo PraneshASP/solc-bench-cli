@@ -1,9 +1,10 @@
+import { NEW_COMPILERS, SOLC_LATEST, SOLC_LATEST_VERSION } from "../types.ts";
 import type { RepoResult, TestResult } from "../types.ts";
 import { bar, c, repoLabel, table } from "../ui.ts";
 import type { Align } from "../ui.ts";
 import { candidatesIn, compare, fmtInt, pct } from "./compare.ts";
 
-const COLORS: Record<string, (s: string) => string> = { solar: c.yellow, slang: c.magenta, solx: c.blue, oksolc: c.cyan };
+const COLORS: Record<string, (s: string) => string> = { solar: c.yellow, slang: c.magenta, solx: c.blue, oksolc: c.cyan, [SOLC_LATEST]: c.green };
 const name = (v: string): string => (COLORS[v] ?? c.gray)(v);
 const right = (n: number): Align[] => Array.from({ length: n }, (): Align => "r");
 const dash = c.gray("–");
@@ -106,29 +107,33 @@ export function renderRepo(r: RepoResult, top: number): string {
   return [buildTable(r), sizeTable(r, top), gasTable(r, top), failures(r)].filter((s) => s !== null).join("\n\n");
 }
 
+function summaryTable(r: RepoResult, variants: string[], baseline: string, title: string, subtitle: string): string {
+  const rows = variants.map((v) => {
+    const b = r.builds[v];
+    if (b.status !== "ok") return [name(v), b.status === "skipped" ? c.yellow("skipped") : c.red("build failed"), "", "", "", ""];
+    const cmp = compare(r, v, baseline);
+    return [
+      name(v),
+      cmp.buildRatio !== undefined ? speedup(cmp.buildRatio) : `${b.median?.toFixed(2)}s`,
+      cmp.sizeDelta !== undefined ? delta(cmp.sizeDelta) : dash,
+      cmp.callGasDelta !== undefined ? delta(cmp.callGasDelta) : dash,
+      cmp.deployDelta !== undefined ? delta(cmp.deployDelta) : dash,
+      testCell(cmp.tests),
+    ];
+  });
+  return table(title, ["compiler", "build", "bytecode", "gas/call", "deploy", "tests"], rows, ["l", ...right(5)], subtitle);
+}
+
 export function renderSummary(results: RepoResult[]): string {
   const blocks = results.map((r) => {
     if (r.error) return `  ${c.bold(repoLabel(r.name))}  ${c.red(r.error)}`;
-    const rows = candidatesIn(r).map((v) => {
-      const b = r.builds[v];
-      if (b.status !== "ok") return [name(v), b.status === "skipped" ? c.yellow("skipped") : c.red("build failed"), "", "", "", ""];
-      const cmp = compare(r, v);
-      return [
-        name(v),
-        cmp.buildRatio !== undefined ? speedup(cmp.buildRatio) : `${b.median?.toFixed(2)}s`,
-        cmp.sizeDelta !== undefined ? delta(cmp.sizeDelta) : dash,
-        cmp.callGasDelta !== undefined ? delta(cmp.callGasDelta) : dash,
-        cmp.deployDelta !== undefined ? delta(cmp.deployDelta) : dash,
-        testCell(cmp.tests),
-      ];
-    });
-    return table(
-      repoLabel(r.name),
-      ["compiler", "build", "bytecode", "gas/call", "deploy", "tests"],
-      rows,
-      ["l", ...right(5)],
-      `${r.commit} · vs ${r.baseline}`,
-    );
+    const out = [summaryTable(r, candidatesIn(r), r.baseline, repoLabel(r.name), `${r.commit} · vs ${r.baseline}`)];
+    // Same solc version and EVM target for every file: shows the compiler's own effect.
+    if (r.builds[SOLC_LATEST]?.status === "ok") {
+      const fresh = NEW_COMPILERS.filter((v) => r.builds[v]);
+      if (fresh.length) out.push(summaryTable(r, fresh, SOLC_LATEST, "", `vs ${SOLC_LATEST} ${SOLC_LATEST_VERSION}`));
+    }
+    return out.join("\n\n");
   });
   return [
     `\n${c.green("◆")} ${c.bold("Summary")}\n`,

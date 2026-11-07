@@ -27,8 +27,8 @@ export interface GasRow {
   calls: number;
 }
 
-export function gasRows(r: RepoResult, cand: string): GasRow[] {
-  const base = r.gas[r.baseline] ?? {};
+export function gasRows(r: RepoResult, cand: string, baseline = r.baseline): GasRow[] {
+  const base = r.gas[baseline] ?? {};
   const other = r.gas[cand] ?? {};
   const rows: GasRow[] = [];
   for (const contract of Object.keys(base).sort()) {
@@ -52,14 +52,14 @@ export interface Comparison {
   tests?: TestResult;
 }
 
-/** Aggregate one candidate against the repo baseline: summed sizes, median per-function gas delta, summed deploy gas. */
-export function compare(r: RepoResult, cand: string): Comparison {
+/** Aggregate one candidate against a baseline (default: the repo pipeline): summed sizes, median per-function gas delta, summed deploy gas. */
+export function compare(r: RepoResult, cand: string, baseline = r.baseline): Comparison {
   const out: Comparison = {};
-  const b = r.builds[r.baseline];
+  const b = r.builds[baseline];
   const x = r.builds[cand];
   if (b?.median && x?.median) out.buildRatio = b.median / x.median;
 
-  const bs = r.sizes[r.baseline] ?? {};
+  const bs = r.sizes[baseline] ?? {};
   const xs = r.sizes[cand] ?? {};
   const common = Object.keys(bs).filter((k) => k in xs);
   if (common.length) {
@@ -67,10 +67,10 @@ export function compare(r: RepoResult, cand: string): Comparison {
     out.sizeDelta = pct(sum(xs), sum(bs));
   }
 
-  const deltas = gasRows(r, cand).map((row) => pct(row.cand, row.base));
+  const deltas = gasRows(r, cand, baseline).map((row) => pct(row.cand, row.base));
   if (deltas.length) out.callGasDelta = median(deltas);
 
-  const bg = r.gas[r.baseline] ?? {};
+  const bg = r.gas[baseline] ?? {};
   const xg = r.gas[cand] ?? {};
   const deps = Object.keys(bg)
     .filter((k) => bg[k].deployment && xg[k]?.deployment)

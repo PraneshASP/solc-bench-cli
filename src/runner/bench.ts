@@ -4,7 +4,7 @@ import { basename, join } from "node:path";
 
 import { renderRepo, renderSummary } from "../report/terminal.ts";
 import type { RepoSpec } from "../spec.ts";
-import { CANDIDATES } from "../types.ts";
+import { CANDIDATES, SOLC_LATEST, SOLC_LATEST_VERSION } from "../types.ts";
 import type { BenchOptions, BuildResult, Meta, RepoResult, TestResult } from "../types.ts";
 import { Board, c, keyValues, repoLabel, section, shortVersion } from "../ui.ts";
 import { RESULTS_DIR, VARIANTS, WORK_DIR, repoDir } from "./env.ts";
@@ -175,6 +175,7 @@ export async function benchRepos(specs: RepoSpec[], opts: BenchOptions, tool: st
   for (const v of CANDIDATES) {
     const cmd = VARIANTS[v].versionCmd;
     if (cmd && opts.variants.includes(v)) versions[v] = firstLine(cmd);
+    if (v === SOLC_LATEST && opts.variants.includes(v)) versions[v] = SOLC_LATEST_VERSION;
   }
   const meta: Meta = {
     tool, date: new Date().toISOString(), versions,
