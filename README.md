@@ -58,7 +58,6 @@ The tool compares each compiler with the solc setup of the project. It measures:
 
 The tool writes the results to `./solc-bench-results/<date>/`:
 
-- `report.md`: the full report.
 - `results.json`: the data.
 - `logs/`: the output of each command.
 

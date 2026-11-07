@@ -2,7 +2,6 @@
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-import { renderMarkdown } from "../report/markdown.ts";
 import { renderRepo, renderSummary } from "../report/terminal.ts";
 import type { RepoSpec } from "../spec.ts";
 import { CANDIDATES } from "../types.ts";
@@ -191,8 +190,7 @@ export async function benchRepos(specs: RepoSpec[], opts: BenchOptions, tool: st
   }
 
   writeFileSync(join(runDir, "results.json"), JSON.stringify({ meta, repos: results }, null, 2));
-  writeFileSync(join(runDir, "report.md"), renderMarkdown(results, meta));
   console.log(renderSummary(results));
-  console.log(`\n${c.green("✓")} saved ${c.bold(stamp)}  ${c.gray("report.md · results.json · logs/")}`);
+  console.log(`\n${c.green("✓")} saved ${c.bold(stamp)}  ${c.gray("results.json · logs/")}`);
   return results.some((r) => r.error) ? 1 : 0;
 }
