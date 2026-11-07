@@ -122,6 +122,7 @@ async function benchRepo(spec: RepoSpec, opts: BenchOptions, runDir: string, pos
         }
         if (!warm) build.times.push(Math.round(res.seconds * 1000) / 1000);
         board.advance(id, `${warm ? "warm-up" : `run ${i - opts.warmup}`}: ${res.seconds.toFixed(2)}s`);
+        board.pause(id);
         if (i === totalFor(v)) {
           // Artifacts of the last build stay in outDir(v) and are reused by the test runs.
           build.median = median(build.times);

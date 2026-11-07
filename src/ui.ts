@@ -98,8 +98,10 @@ interface Step {
   done: number;
   state: StepState;
   status: string;
-  startedAt: number | null;
-  endedAt: number | null;
+  /** time spent running, excluding pauses between interleaved rounds */
+  activeMs: number;
+  /** start of the current active period, or null while paused or not started */
+  since: number | null;
 }
 
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -130,17 +132,22 @@ export class Board {
   }
 
   add(label: string, total: number): number {
-    this.steps.push({ label: sanitize(label), total, done: 0, state: "queued", status: "", startedAt: null, endedAt: null });
+    this.steps.push({ label: sanitize(label), total, done: 0, state: "queued", status: "", activeMs: 0, since: null });
     return this.steps.length - 1;
   }
 
   update(id: number, status: string): void {
     const step = this.steps[id];
-    if (step.state === "queued") {
-      step.state = "running";
-      step.startedAt = Date.now();
-    }
+    if (step.state === "queued") step.state = "running";
+    step.since ??= Date.now();
     step.status = sanitize(status);
+  }
+
+  /** Stop the step's clock until the next update, e.g. while other steps run their round. */
+  pause(id: number): void {
+    const step = this.steps[id];
+    if (step.since !== null) step.activeMs += Date.now() - step.since;
+    step.since = null;
   }
 
   advance(id: number, status: string): void {
@@ -150,8 +157,7 @@ export class Board {
 
   finish(id: number, state: Exclude<StepState, "queued" | "running">, status: string): void {
     const step = this.steps[id];
-    step.startedAt ??= Date.now();
-    step.endedAt = Date.now();
+    this.pause(id);
     step.state = state;
     step.status = sanitize(status);
     if (state === "done") step.done = step.total;
@@ -163,7 +169,7 @@ export class Board {
 
   private line(step: Step, labelWidth: number): string {
     const icon =
-      step.state === "running" ? c.cyan(SPINNER[this.frame % SPINNER.length])
+      step.state === "running" ? (step.since === null ? c.gray("◦") : c.cyan(SPINNER[this.frame % SPINNER.length]))
       : step.state === "done" ? c.green("✓")
       : step.state === "failed" ? c.red("✗")
       : step.state === "skipped" ? c.yellow("○")
@@ -174,7 +180,8 @@ export class Board {
       step.state === "running" && step.total > 1
         ? bar(step.done / step.total, BAR_WIDTH, c.cyan) + " "
         : step.state === "running" ? c.gray("·".repeat(BAR_WIDTH)) + " " : "";
-    const elapsed = step.startedAt ? c.gray(formatDuration((step.endedAt ?? Date.now()) - step.startedAt).padStart(5)) : "     ";
+    const ms = step.activeMs + (step.since === null ? 0 : Date.now() - step.since);
+    const elapsed = step.state === "queued" ? "     " : c.gray(formatDuration(ms).padStart(5));
     const fixed = `  ${icon} ${label}  ${elapsed}  ${progress}`;
     const status = truncate(stripAnsi(step.status), Math.max(10, termWidth() - visible(fixed) - 1));
     const colored =
