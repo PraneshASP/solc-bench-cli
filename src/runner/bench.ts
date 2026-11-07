@@ -18,6 +18,15 @@ function median(times: number[]): number {
   return s.length % 2 ? s[m] : Math.round(((s[m - 1] + s[m]) / 2) * 1000) / 1000;
 }
 
+function shuffle<T>(items: T[]): T[] {
+  const a = [...items];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 async function benchRepo(spec: RepoSpec, opts: BenchOptions, runDir: string, position: string): Promise<RepoResult> {
   const src = repoDir(spec);
   const logs = join(runDir, "logs", spec.name);
@@ -33,12 +42,15 @@ async function benchRepo(spec: RepoSpec, opts: BenchOptions, runDir: string, pos
   const outDir = (v: string) => join(WORK_DIR, `${spec.name}.out-${v}`);
   const cacheDir = (v: string) => join(WORK_DIR, `${spec.name}.cache-${v}`);
   const rootFor = (v: string) => (VARIANTS[v].relaxPragmas ? relaxed : work);
-  const runsFor = (v: string) => (v === "solc-viair" ? opts.viaIrRuns : opts.runs);
+  // via-IR builds are slow, so they use --via-ir-runs. solc-latest follows the repo's own via_ir setting.
+  const isViaIr = (v: string) => v === "solc-viair" || (v === SOLC_LATEST && result.config.viaIr);
+  const runsFor = (v: string) => (isViaIr(v) ? opts.viaIrRuns : opts.runs);
+  const totalFor = (v: string) => runsFor(v) + opts.warmup;
 
   console.log(section(repoLabel(spec.name), position) + "\n");
   const board = new Board();
   const prep = board.add("prepare workspace", 1);
-  const buildIds = Object.fromEntries(opts.variants.map((v) => [v, board.add(`build ${v}`, runsFor(v))]));
+  const buildIds: Record<string, number> = {};
   board.start();
 
   try {
@@ -66,22 +78,37 @@ async function benchRepo(spec: RepoSpec, opts: BenchOptions, runDir: string, pos
     }
     board.finish(prep, "done", `${result.sourceFiles} .sol files, commit ${result.commit}, evm ${result.config.evmVersion}, baseline ${result.baseline}`);
 
+    const planned: string[] = [];
     for (const v of opts.variants) {
-      const id = buildIds[v];
-      if (!supported(v)) {
+      buildIds[v] = board.add(`build ${v}`, totalFor(v));
+      if (supported(v)) {
+        planned.push(v);
+        result.builds[v] = { status: "ok", times: [] };
+      } else {
         const note = `unsupported EVM version ${result.config.evmVersion}`;
         result.builds[v] = { status: "skipped", times: [], note };
-        board.finish(id, "skipped", note);
-        continue;
+        board.finish(buildIds[v], "skipped", note);
       }
-      const root = rootFor(v);
-      const total = runsFor(v);
-      const build: BuildResult = { status: "ok", times: [] };
-      for (let i = 1; i <= total; i++) {
+    }
+
+    // Each round builds every unfinished variant once, in a new random order, so no compiler always runs
+    // first or last. The first `warmup` builds of each variant are not timed.
+    const done: Record<string, number> = {};
+    result.buildOrder = [];
+    for (;;) {
+      const round = shuffle(planned.filter((v) => result.builds[v].status === "ok" && (done[v] ?? 0) < totalFor(v)));
+      if (!round.length) break;
+      for (const v of round) {
+        const id = buildIds[v];
+        const build = result.builds[v];
+        const i = (done[v] = (done[v] ?? 0) + 1);
+        const warm = i <= opts.warmup;
+        const root = rootFor(v);
         rmSync(outDir(v), { recursive: true, force: true });
         rmSync(cacheDir(v), { recursive: true, force: true });
-        const logPath = join(logs, `build-${v}-${i}.log`);
-        board.update(id, `run ${i}/${total}`);
+        const logPath = join(logs, `build-${v}-${i}${warm ? "-warmup" : ""}.log`);
+        board.update(id, warm ? "warm-up build" : `run ${i - opts.warmup}/${runsFor(v)}`);
+        result.buildOrder.push(warm ? `${v} (warm-up)` : v);
         const res = await runCmd(
           ["forge", "build", "--no-lint", "--color", "never", "--root", root, "--out", outDir(v), "--cache-path", cacheDir(v), ...VARIANTS[v].flags],
           { cwd: root, logPath, timeoutMs: opts.timeoutMs, env: VARIANTS[v].env, onLine: (l) => board.update(id, l) },
@@ -90,19 +117,19 @@ async function benchRepo(spec: RepoSpec, opts: BenchOptions, runDir: string, pos
           build.status = "failed";
           build.errorTail = tail(logPath);
           build.note = res.timedOut ? "timed out" : `exit ${res.code}, see logs/${spec.name}/${basename(logPath)}`;
-          break;
+          board.finish(id, "failed", build.note);
+          continue;
         }
-        build.times.push(Math.round(res.seconds * 1000) / 1000);
-        board.advance(id, `run ${i}: ${res.seconds.toFixed(2)}s`);
+        if (!warm) build.times.push(Math.round(res.seconds * 1000) / 1000);
+        board.advance(id, `${warm ? "warm-up" : `run ${i - opts.warmup}`}: ${res.seconds.toFixed(2)}s`);
+        if (i === totalFor(v)) {
+          // Artifacts of the last build stay in outDir(v) and are reused by the test runs.
+          build.median = median(build.times);
+          result.sizes[v] = collectSizes(outDir(v), srcFiles, new Set(opts.contracts));
+          const spread = build.times.length > 1 ? `, range ${Math.min(...build.times).toFixed(2)}-${Math.max(...build.times).toFixed(2)}s` : "";
+          board.finish(id, "done", `median ${build.median.toFixed(2)}s${spread}`);
+        }
       }
-      if (build.status === "ok") {
-        build.median = median(build.times);
-        result.sizes[v] = collectSizes(outDir(v), srcFiles, new Set(opts.contracts));
-        board.finish(id, "done", `median ${build.median.toFixed(2)}s (min ${Math.min(...build.times).toFixed(2)}, max ${Math.max(...build.times).toFixed(2)})`);
-      } else {
-        board.finish(id, "failed", build.note ?? "failed");
-      }
-      result.builds[v] = build;
     }
     board.stop();
 
@@ -179,11 +206,11 @@ export async function benchRepos(specs: RepoSpec[], opts: BenchOptions, tool: st
   }
   const meta: Meta = {
     tool, date: new Date().toISOString(), versions,
-    runs: opts.runs, viaIrRuns: opts.viaIrRuns, fuzzSeed: opts.fuzzSeed, variants: opts.variants,
+    runs: opts.runs, viaIrRuns: opts.viaIrRuns, warmup: opts.warmup, fuzzSeed: opts.fuzzSeed, variants: opts.variants,
   };
   console.log(section("bench"));
   console.log(keyValues(Object.entries(versions).map(([k, v]) => [k, shortVersion(k, v)])));
-  console.log(c.gray(`  ${opts.runs} run(s) per compiler · via-IR ${opts.viaIrRuns} · fuzz seed ${opts.fuzzSeed}`));
+  console.log(c.gray(`  ${opts.runs} run(s) per compiler · via-IR ${opts.viaIrRuns} · warm-up ${opts.warmup} · fuzz seed ${opts.fuzzSeed}`));
 
   const results: RepoResult[] = [];
   for (const [i, spec] of specs.entries()) {

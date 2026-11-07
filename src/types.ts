@@ -47,6 +47,8 @@ export interface RepoResult {
   sizes: Record<string, Sizes>;
   tests: Record<string, TestResult>;
   gas: Record<string, Record<string, GasContract>>;
+  /** Order in which builds ran, shuffled per round. Includes warm-up builds. */
+  buildOrder?: string[];
   error?: string;
 }
 
@@ -56,6 +58,7 @@ export interface Meta {
   versions: Record<string, string>;
   runs: number;
   viaIrRuns: number;
+  warmup?: number;
   fuzzSeed: number;
   variants: string[];
 }
@@ -63,6 +66,7 @@ export interface Meta {
 export interface BenchOptions {
   runs: number;
   viaIrRuns: number;
+  warmup: number;
   variants: string[];
   fuzzSeed: number;
   timeoutMs: number;

@@ -7,6 +7,7 @@ import type { BenchOptions } from "./types.ts";
 export const BENCH_FLAGS = {
   runs: { type: "string" },
   "via-ir-runs": { type: "string" },
+  warmup: { type: "string" },
   variants: { type: "string" },
   "fuzz-seed": { type: "string" },
   timeout: { type: "string" },
@@ -36,6 +37,7 @@ export function parseBenchOptions(values: BenchValues): BenchOptions {
   return {
     runs,
     viaIrRuns: int("via-ir-runs", values["via-ir-runs"], runs, 1),
+    warmup: int("warmup", values.warmup, 1, 0),
     variants,
     fuzzSeed: int("fuzz-seed", values["fuzz-seed"], 1, 0),
     timeoutMs: int("timeout", values.timeout, 3600, 1) * 1000,
@@ -48,7 +50,7 @@ export function parseBenchOptions(values: BenchValues): BenchOptions {
 /** Serialize validated options back into flags for the container. */
 export function benchArgs(o: BenchOptions): string[] {
   return [
-    "--runs", String(o.runs), "--via-ir-runs", String(o.viaIrRuns), "--variants", o.variants.join(","),
+    "--runs", String(o.runs), "--via-ir-runs", String(o.viaIrRuns), "--warmup", String(o.warmup), "--variants", o.variants.join(","),
     "--fuzz-seed", String(o.fuzzSeed), "--timeout", String(o.timeoutMs / 1000), "--top", String(o.top),
     ...(o.contracts.length ? ["--contracts", o.contracts.join(",")] : []),
     ...(o.skipTests ? ["--skip-tests"] : []),

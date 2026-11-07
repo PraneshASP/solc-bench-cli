@@ -28,21 +28,23 @@ function buildTable(r: RepoResult): string {
   const slowest = Math.max(...Object.values(r.builds).map((b) => b.median ?? 0));
   return table(
     "Build time",
-    ["compiler", "median", "", `vs ${r.baseline}`, ""],
+    ["compiler", "median", "range", "", `vs ${r.baseline}`],
     Object.entries(r.builds).map(([v, b]) => {
       if (b.status !== "ok") {
-        return [name(v), b.status === "skipped" ? c.yellow("skipped") : c.red("failed"), "", "", c.gray(b.note ?? "")];
+        return [name(v), b.status === "skipped" ? c.yellow("skipped") : c.red("failed"), "", c.gray(b.note ?? ""), ""];
       }
       const m = b.median as number;
+      const lo = Math.min(...b.times);
+      const hi = Math.max(...b.times);
       return [
         name(v),
         `${m.toFixed(2)}s`,
+        b.times.length > 1 ? c.gray(`${lo.toFixed(2)}–${hi.toFixed(2)}s`) : "",
         bar(slowest ? m / slowest : 0, 24, COLORS[v] ?? c.gray),
         v === r.baseline ? c.gray("baseline") : base ? speedup(base / m) : dash,
-        b.times.length > 1 ? c.gray(`${b.times.length} runs`) : "",
       ];
     }),
-    ["l", "r", "l", "r", "l"],
+    ["l", "r", "r", "l", "r"],
   );
 }
 

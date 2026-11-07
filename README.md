@@ -56,7 +56,7 @@ The summary shows two comparisons for each project:
 
 The tool measures:
 
-- Build time: the median of clean builds.
+- Build time: the median of clean builds, with the range. The first build of each compiler is not timed. The build order changes randomly in each round.
 - Contract size: the size of the deployed bytecode.
 - Deployment gas.
 - Gas per function call: the median from the gas report of the project tests.

@@ -25,7 +25,8 @@ ${c.bold("usage")}
 
 ${c.bold("benchmark")}
   --runs N            clean builds per compiler (3)
-  --via-ir-runs N     clean builds for solc via-IR (--runs)
+  --via-ir-runs N     clean builds for slow via-IR solc builds (--runs)
+  --warmup N          untimed builds per compiler before timing (1)
   --variants LIST     ${ALL_VARIANTS.join(",")} (all)
   --fuzz-seed N       fuzz seed shared by all compilers (1)
   --timeout SECS      per forge command (3600)
