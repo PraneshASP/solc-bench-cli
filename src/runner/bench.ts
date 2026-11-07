@@ -7,7 +7,7 @@ import type { RepoSpec } from "../spec.ts";
 import { CANDIDATES, SOLC_LATEST, SOLC_LATEST_VERSION } from "../types.ts";
 import type { BenchOptions, BuildResult, Meta, RepoResult, TestResult } from "../types.ts";
 import { Board, c, keyValues, repoLabel, section, shortVersion } from "../ui.ts";
-import { RESULTS_DIR, VARIANTS, WORK_DIR, repoDir } from "./env.ts";
+import { FUZZ_ENV, RESULTS_DIR, VARIANTS, WORK_DIR, repoDir } from "./env.ts";
 import { firstLine, runCmd, tail, walk } from "./exec.ts";
 import { collectSizes, forgeConfig, parseGas, parseTests, relaxPragmas, sourceFileNames } from "./forge.ts";
 import { gitCommit } from "./git.ts";
@@ -166,7 +166,9 @@ async function testVariants(result: RepoResult, opts: BenchOptions, ctx: TestCtx
       "forge", "test", "--root", root, "--out", ctx.outDir(v), "--cache-path", ctx.cacheDir(v),
       "--fuzz-seed", String(opts.fuzzSeed), ...VARIANTS[v].flags,
     ];
+    // Pass/fail uses the repo's own fuzz settings. The gas report uses fuzz inputs that do not depend on bytecode.
     const env = { ...VARIANTS[v].env, NO_COLOR: "1" };
+    const gasEnv = { ...env, ...FUZZ_ENV };
     const testsJson = join(ctx.logs, `test-${v}.json`);
     const gasJson = join(ctx.logs, `gas-${v}.json`);
     const onLine = (l: string) => board.update(id, l);
@@ -182,7 +184,7 @@ async function testVariants(result: RepoResult, opts: BenchOptions, ctx: TestCtx
     result.tests[v] = tr;
     board.advance(id, "collecting gas report");
 
-    await runCmd([...base, "--gas-report", "--json"], { cwd: root, logPath: join(ctx.logs, `gas-${v}.log`), timeoutMs: opts.timeoutMs, env, stdoutPath: gasJson, onLine });
+    await runCmd([...base, "--gas-report", "--json"], { cwd: root, logPath: join(ctx.logs, `gas-${v}.log`), timeoutMs: opts.timeoutMs, env: gasEnv, stdoutPath: gasJson, onLine });
     try {
       result.gas[v] = parseGas(gasJson, wanted);
     } catch {

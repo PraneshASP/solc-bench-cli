@@ -48,3 +48,9 @@ export const VARIANTS: Record<string, Variant> = {
   "solc-viair": { flags: [], env: { FOUNDRY_VIA_IR: "true" }, relaxPragmas: false },
 };
 
+/**
+ * Applied to the gas report run only. By default Foundry seeds fuzz inputs with constants found in the compiled
+ * bytecode, so different compilers would get different inputs. Pass/fail runs keep the default, because some
+ * fuzz tests need those constants to find inputs that pass their `vm.assume` checks.
+ */
+export const FUZZ_ENV = { FOUNDRY_FUZZ_INCLUDE_PUSH_BYTES: "false", FOUNDRY_INVARIANT_INCLUDE_PUSH_BYTES: "false" };

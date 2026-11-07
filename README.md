@@ -59,8 +59,8 @@ The tool measures:
 - Build time: the median of clean builds, with the range. The first build of each compiler is not timed. The build order changes randomly in each round.
 - Contract size: the size of the deployed bytecode.
 - Deployment gas.
-- Gas per function call: the median from the gas report of the project tests.
-- Tests: the number of tests that pass. All compilers use the same fuzz seed.
+- Gas per function call: the median from the gas report of the project tests. For the gas report, fuzz inputs do not depend on the compiled bytecode, so all compilers get the same inputs.
+- Tests: the number of tests that pass with the fuzz settings of the project. All compilers use the same fuzz seed.
 
 The tool writes the results to `./solc-bench-results/<date>/`:
 
