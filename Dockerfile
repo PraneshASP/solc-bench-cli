@@ -1,4 +1,4 @@
-# solc-bench sandbox: Solar, Slang, solx and oksolc next to Foundry's solc.
+# solc-bench sandbox: Solar, Slang, solx, oksolc and solc-par next to Foundry's solc.
 # Network is only used at image build time and in the fetch phase; benchmarks run with --network none.
 # Node 26.13.0 "Lithium" (Active LTS), Debian 13 trixie
 ARG BASE=node:26.13.0-trixie-slim@sha256:5adad64f9a1fca2d51972caa65983634c8a774eb300d72b20f7f2a0f60368072
@@ -36,6 +36,38 @@ RUN set -eu; \
     test "$(git rev-parse HEAD)" = "$OKSOLC_COMMIT"; \
     ZIG_GLOBAL_CACHE_DIR=/tmp/zig-cache /opt/zig/zig build -Doptimize=ReleaseFast -Dstrip=true --prefix /out; \
     /out/bin/oksolc version
+
+# ---------------------------------------------------------------- solc-par (built from a pinned commit)
+FROM ${BASE} AS solc-par
+ARG TARGETARCH
+ARG GO_VERSION=1.26.10
+ARG GO_SHA256_ARM64=3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797
+ARG GO_SHA256_AMD64=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5
+# bussyjd/solc-par tag v0.1.2 (zero external dependencies, standard library only).
+ARG SOLC_PAR_COMMIT=4911aae758795952677510bc4e4781d6938ee9ef
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl git \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN set -eu; \
+    ARCH="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "$ARCH" in \
+      arm64) G_SHA="$GO_SHA256_ARM64" ;; \
+      amd64) G_SHA="$GO_SHA256_AMD64" ;; \
+      *) echo "unsupported arch: $ARCH" >&2; exit 1 ;; \
+    esac; \
+    cd /tmp; \
+    curl -fsSL --proto '=https' --tlsv1.2 -o go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz"; \
+    echo "$G_SHA  go.tar.gz" | sha256sum -c -; \
+    tar -xzf go.tar.gz -C /usr/local && rm go.tar.gz; \
+    mkdir /src /out && cd /src; \
+    git -c core.hooksPath=/dev/null init -q; \
+    git remote add origin https://github.com/bussyjd/solc-par; \
+    git -c protocol.allow=never -c protocol.https.allow=always fetch -q --depth 1 origin "$SOLC_PAR_COMMIT"; \
+    git -c core.hooksPath=/dev/null -c advice.detachedHead=false checkout -q FETCH_HEAD; \
+    test "$(git rev-parse HEAD)" = "$SOLC_PAR_COMMIT"; \
+    CGO_ENABLED=0 /usr/local/go/bin/go build -trimpath -ldflags="-s -w" -o /out/solc-par .
 
 # ---------------------------------------------------------------- runtime image
 FROM ${BASE}
@@ -78,8 +110,9 @@ RUN set -eu; \
     rm -f foundry.tar.gz slang solx
 
 COPY --from=oksolc /out/bin/oksolc /usr/local/bin/oksolc
+COPY --from=solc-par /out/solc-par /usr/local/bin/solc-par
 RUN forge --version | head -1 && solar --version | head -1 && slang --version | head -1 \
- && solx --version | head -1 && oksolc version
+ && solx --version | head -1 && oksolc version && test -x /usr/local/bin/solc-par
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin bench \
  && mkdir -p /repos /work /results /src /home/bench/.svm /home/bench/.foundry \
@@ -100,6 +133,6 @@ ENV FOUNDRY_FFI=false \
 ENTRYPOINT ["node", "--permission", \
   "--allow-fs-read=/opt/solc-bench", "--allow-fs-read=/repos", "--allow-fs-read=/src", "--allow-fs-read=/work", \
   "--allow-fs-read=/results", "--allow-fs-read=/tmp", "--allow-fs-read=/home/bench", \
-  "--allow-fs-write=/repos", "--allow-fs-write=/work", "--allow-fs-write=/results", "--allow-fs-write=/tmp", \
+  "--allow-fs-write=/repos", "--allow-fs-write=/work", "--allow-fs-write=/results", "--allow-fs-write=/tmp", "--allow-fs-write=/home/bench/.svm", \
   "--allow-child-process", "--disable-warning=PERM0002", "--disallow-code-generation-from-strings", \
   "/opt/solc-bench/dist/runner/main.js"]

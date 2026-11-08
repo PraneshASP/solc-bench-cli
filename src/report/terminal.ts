@@ -4,7 +4,7 @@ import { bar, c, repoLabel, table } from "../ui.ts";
 import type { Align } from "../ui.ts";
 import { candidatesIn, compare, fmtInt, pct } from "./compare.ts";
 
-const COLORS: Record<string, (s: string) => string> = { solar: c.yellow, slang: c.magenta, solx: c.blue, oksolc: c.cyan, [SOLC_LATEST]: c.green };
+const COLORS: Record<string, (s: string) => string> = { solar: c.yellow, slang: c.magenta, solx: c.blue, oksolc: c.cyan, "solc-par": c.green, [SOLC_LATEST]: c.green };
 const name = (v: string): string => (COLORS[v] ?? c.gray)(v);
 const right = (n: number): Align[] => Array.from({ length: n }, (): Align => "r");
 const dash = c.gray("–");

@@ -1,4 +1,4 @@
-export const NEW_COMPILERS = ["solar", "slang", "solx", "oksolc"] as const;
+export const NEW_COMPILERS = ["solar", "slang", "solx", "oksolc", "solc-par"] as const;
 /** One recent solc for all files and the same EVM target as the new compilers. Separates compiler effects from version effects. */
 export const SOLC_LATEST = "solc-latest";
 export const SOLC_LATEST_VERSION = "0.8.38";
