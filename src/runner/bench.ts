@@ -42,8 +42,8 @@ async function benchRepo(spec: RepoSpec, opts: BenchOptions, runDir: string, pos
   const outDir = (v: string) => join(WORK_DIR, `${spec.name}.out-${v}`);
   const cacheDir = (v: string) => join(WORK_DIR, `${spec.name}.cache-${v}`);
   const rootFor = (v: string) => (VARIANTS[v].relaxPragmas ? relaxed : work);
-  // via-IR builds are slow, so they use --via-ir-runs. solc-latest follows the repo's own via_ir setting.
-  const isViaIr = (v: string) => v === "solc-viair" || (v === SOLC_LATEST && result.config.viaIr);
+  // via-IR builds are slow, so they use --via-ir-runs. solc-latest and solc-par follow the repo's own via_ir setting.
+  const isViaIr = (v: string) => v === "solc-viair" || ((v === SOLC_LATEST || v === "solc-par") && result.config.viaIr);
   const runsFor = (v: string) => (isViaIr(v) ? opts.viaIrRuns : opts.runs);
   const totalFor = (v: string) => runsFor(v) + opts.warmup;
 

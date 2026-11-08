@@ -12,6 +12,7 @@ It builds and tests each project with each compiler. Then it shows the differenc
 | Slang | preview v0.2.0 | [NomicFoundation/solx](https://github.com/NomicFoundation/solx) |
 | solx | 0.1.8 | [NomicFoundation/solx](https://github.com/NomicFoundation/solx) |
 | oksolc | 0.2.4 | [okcontract/oksolc](https://github.com/okcontract/oksolc) |
+| solc-par | 0.1.2 (parallel solc wrapper) | [bussyjd/solc-par](https://github.com/bussyjd/solc-par) |
 | solc | the versions that the project uses | Foundry |
 | solc-latest | 0.8.38 for all files | Foundry |
 

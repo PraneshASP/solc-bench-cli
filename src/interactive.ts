@@ -12,6 +12,7 @@ const HINTS: Record<string, string> = {
   slang: "Nomic, Slang + LLVM, cancun+ only",
   solx: "Nomic, solc + LLVM, cancun+ only",
   oksolc: "Zig reimplementation, via-IR",
+  "solc-par": "parallel solc wrapper, same bytecode",
   "solc-latest": "solc 0.8.38 for all files, isolates compiler effects",
   "solc-legacy": "baseline for non via-IR repos",
   "solc-viair": "baseline for via-IR repos, slowest",

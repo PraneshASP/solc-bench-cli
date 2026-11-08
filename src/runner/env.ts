@@ -9,6 +9,7 @@ export const REPOS_DIR = "/repos";
 export const WORK_DIR = "/work";
 export const RESULTS_DIR = "/results";
 export const SVM_DIR = join(homedir(), ".svm");
+export const PAR_HOME_DIR = join(SVM_DIR, "par-home");
 
 export const repoDir = (spec: RepoSpec): string => (spec.kind === "local" ? spec.path : join(REPOS_DIR, spec.name));
 
@@ -42,6 +43,8 @@ export const VARIANTS: Record<string, Variant> = {
     flags: ["--use", "/usr/local/bin/oksolc"], env: { FOUNDRY_VIA_IR: "true", FOUNDRY_OPTIMIZER: "true" }, relaxPragmas: true,
     versionCmd: ["/usr/local/bin/oksolc", "version"],
   },
+  // Shards each --standard-json compile across concurrent stock solc processes.
+  "solc-par": { flags: [], env: { HOME: PAR_HOME_DIR, XDG_CACHE_HOME: "/tmp" }, relaxPragmas: false, versionCmd: ["echo", "0.1.2"] },
   // One recent solc for every file, with the repo's own via_ir and optimizer settings.
   [SOLC_LATEST]: { flags: ["--use", SOLC_LATEST_VERSION], env: {}, relaxPragmas: true },
   "solc-legacy": { flags: [], env: { FOUNDRY_VIA_IR: "false" }, relaxPragmas: false },
